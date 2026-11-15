@@ -19,3 +19,4 @@ jobs:
         run: |\n          node tests/smoke.test.js\n          node tests/calculations.test.js
           node tests/quotes.test.js
           node tests/nc-review.test.js
+          node tests/nc-diff.test.js
