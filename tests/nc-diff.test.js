@@ -44,3 +44,9 @@ assert.equal(changes.filter(x=>x.kind==='removed').length,1);
 assert.equal(Array.from(vm.runInContext('ncDiffPairs('+JSON.stringify(changes)+')',ctx)).length,1);
 assert.equal(vm.runInContext("compareNCLines('L X+1','L X+1').length",ctx),0);
 console.log('PASS: end-to-end NC line comparison and numeric pairing');
+
+const separate=Array.from(vm.runInContext("compareNCLines('L X+1\nL X+2\nL X+3','L X+5\nL X+2\nL X+9')",ctx));
+assert.equal(Array.from(vm.runInContext('ncDiffPairs('+JSON.stringify(separate)+')',ctx)).length,2,'Separate one-line edits should be compared');
+const ambiguous=[{kind:'removed',line:1,text:'L X+1',hunk:0},{kind:'removed',line:2,text:'L X+2',hunk:0},{kind:'added',line:1,text:'L X+3',hunk:0}];
+assert.equal(Array.from(vm.runInContext('ncDiffPairs('+JSON.stringify(ambiguous)+')',ctx)).length,0,'Ambiguous multiple-line changes must not be paired');
+console.log('PASS: numeric pairing skips ambiguous multi-line changes');
