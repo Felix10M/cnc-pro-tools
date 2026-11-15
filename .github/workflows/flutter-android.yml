@@ -42,14 +42,18 @@ jobs:
       - name: Build APK
         working-directory: flutter-app
         run: flutter build apk --debug
-      - name: Build unsigned release AAB
-        working-directory: flutter-app
-        run: flutter build appbundle --release
       - uses: actions/upload-artifact@v4
         with:
           name: CNC-Pro-Tools-Flutter-APK
           path: flutter-app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+      - name: Build release AAB (experimental)
+        continue-on-error: true
+        working-directory: flutter-app
+        run: flutter build appbundle --release --verbose
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: CNC-Pro-Tools-Flutter-AAB-Not-Play-Ready
           path: flutter-app/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: ignore
