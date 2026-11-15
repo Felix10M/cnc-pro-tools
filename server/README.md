@@ -26,3 +26,8 @@ Acesta este un **starter de backend**, nu un serviciu deja lansat. Site-ul GitHu
 - Pentru clienți sunt necesare termeni, politică de confidențialitate, informații despre anulare și documente fiscale corespunzătoare.
 
 Pornire locală: `cd server && npm install && cp .env.example .env && npm start` (completează întâi variabilele). Nu comite fișierul `.env`.
+
+## Conectarea interfeței (adăugată ulterior)
+În `payments-config.js` configurează **numai** `supabaseUrl`, `supabaseAnonKey` (cheie publică) și `apiBaseUrl` (HTTPS, fără slash final). Interfața include acum login prin link pe e-mail, afișarea statutului, Checkout și portal. Până la completarea tuturor celor trei valori, autentificarea și Checkout rămân dezactivate. În Supabase Auth → URL Configuration, configurează URL-ul aplicației și redirectul `https://felix10m.github.io/cnc-pro-tools/`. Nu adăuga service-role sau Stripe secret keys în fișierele publice.
+
+**Atenție:** verifică și testează fluxul complet înainte de lansare; nu a fost efectuat un test end-to-end cu conturi reale. Nu considera această integrare dovadă că accesul la codul public al funcțiilor PRO este restricționat.
