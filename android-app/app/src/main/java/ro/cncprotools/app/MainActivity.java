@@ -21,6 +21,7 @@ public class MainActivity extends Activity {
     private static final String HOME = "https://felix10m.github.io/cnc-pro-tools/";
     private WebView web;
     private LinearLayout offline;
+    private boolean pageFailed = false;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         FrameLayout root = new FrameLayout(this);
@@ -43,10 +44,10 @@ public class MainActivity extends Activity {
                 return true;
             }
             @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame()) offline.setVisibility(View.VISIBLE);
+                if (request.isForMainFrame()) { pageFailed = true; offline.setVisibility(View.VISIBLE); }
             }
             @Override public void onPageFinished(WebView view, String url) {
-                if (url.startsWith(HOME)) offline.setVisibility(View.GONE);
+                if (!pageFailed && url.startsWith(HOME)) offline.setVisibility(View.GONE);
             }
         });
         root.addView(web, new FrameLayout.LayoutParams(-1,-1));
@@ -68,7 +69,7 @@ public class MainActivity extends Activity {
         offline.addView(explanation);
         Button retry = new Button(this);
         retry.setText("Reîncearcă / Retry");
-        retry.setOnClickListener(v -> { offline.setVisibility(View.GONE); web.loadUrl(HOME); });
+        retry.setOnClickListener(v -> { pageFailed = false; offline.setVisibility(View.GONE); web.loadUrl(HOME); });
         offline.addView(retry);
         offline.setVisibility(View.GONE);
         root.addView(offline, new FrameLayout.LayoutParams(-1,-1));
