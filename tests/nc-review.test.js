@@ -26,3 +26,10 @@ console.log('PASS: empty input');
 hits=analyze('X'.repeat(100001),'620');
 assert.ok(hits.some(x=>x.level==='error'),'Input limit missing');
 console.log('PASS: size limit');
+
+hits=analyze('BEGIN PGM TEST MM\nL A+90 B-15 FMAX\nPLANE RESET\nCYCL DEF 19.0 WORKING PLANE\nM129\nEND PGM TEST MM','530');
+assert.ok(hits.some(x=>x.ro.includes('Coordonată rotativă')),'Rotary axis warning missing');
+assert.ok(hits.some(x=>x.ro.includes('PLANE RESET')),'Plane reset warning missing');
+assert.ok(hits.some(x=>x.ro.includes('Ciclu 19')),'Cycle 19 warning missing');
+assert.ok(hits.some(x=>x.ro.includes('M129')),'M129 warning missing');
+console.log('PASS: 5-axis transitional command checks');
