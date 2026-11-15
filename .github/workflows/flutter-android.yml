@@ -1,0 +1,42 @@
+name: Flutter Android Build
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'flutter-app/**'
+      - '.github/workflows/flutter-android.yml'
+
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate Android project
+        working-directory: flutter-app
+        run: flutter create --platforms android --org ro.cncprotools .
+      - name: Install dependencies
+        working-directory: flutter-app
+        run: flutter pub get
+      - name: Analyze Dart
+        working-directory: flutter-app
+        run: flutter analyze --no-fatal-infos
+      - name: Build APK
+        working-directory: flutter-app
+        run: flutter build apk --debug
+      - name: Build unsigned release AAB
+        working-directory: flutter-app
+        run: flutter build appbundle --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CNC-Pro-Tools-Flutter-APK
+          path: flutter-app/build/app/outputs/flutter-apk/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CNC-Pro-Tools-Flutter-AAB-Not-Play-Ready
+          path: flutter-app/build/app/outputs/bundle/release/app-release.aab
