@@ -178,6 +178,27 @@ function analyzeNC(source,controller){
   if(/\b(?:A|B|C)[+-](?:\d+(?:\.\d*)?|\.\d+|Q\d+)\b/.test(line)&&/\b(?:L|LP|CP|CC|PLANE)\b/.test(line))flag('review',i+1,'Coordonată rotativă A/B/C detectată: verifică limitele axelor, sensurile și coliziunile la tranziție.','Rotary A/B/C coordinate detected: check axis limits, direction and transition collisions.');
   if(/\bCYCL\s+CALL\b/.test(line)&&!has(/\bCYCL\s+DEF\b/))flag('review',i+1,'CYCL CALL fără CYCL DEF în fragment; definiția poate fi în afara fragmentului.','CYCL CALL without CYCL DEF in snippet; definition may be elsewhere.');
  });
+ // Sequence heuristics only: no modal state, tool geometry, work offsets or machine motion is reconstructed.
+ let previousMotion=null,previousOrientation=null;
+ clean.forEach((line,i)=>{
+  if(!line||/^\d*\s*(?:;|\()/.test(line))return;
+  const motion=/\b(?:L|LP)\s+/.test(line)&&/\b(?:X|Y|Z|A|B|C)[+-]/.test(line);
+  const orientation=/\bPLANE\s+(?!RESET\b)/.test(line)||/\bCYCL\s+DEF\s+19(?:\D|$)/.test(line);
+  const reset=/\bPLANE\s+RESET\b/.test(line);
+  const tcpOff=/\bM129\b/.test(line);
+  const rotary=/\b(?:A|B|C)[+-](?:\d|Q)/.test(line)&&motion;
+  if((orientation||reset)&&previousMotion&&i-previousMotion.line<=2){
+   flag('review',i+1,'Schimbare de orientare aproape de o mișcare NC (linia '+(previousMotion.line+1)+'): verifică retragerea și degajarea reală.','Orientation change near NC motion (line '+(previousMotion.line+1)+'): verify actual retract and clearance.');
+  }
+  if(tcpOff&&previousMotion&&i-previousMotion.line<=2){
+   flag('review',i+1,'Dezactivare TCP aproape de o mișcare NC: confirmă poziția și compensările active.','TCP cancellation near NC motion: confirm tool position and active compensation.');
+  }
+  if(rotary&&previousOrientation&&i-previousOrientation.line<=3){
+   flag('review',i+1,'Mișcare rotativă aproape de schimbarea orientării (linia '+(previousOrientation.line+1)+'): verifică legăturile și simularea completă.','Rotary move near orientation change (line '+(previousOrientation.line+1)+'): check linking moves and full simulation.');
+  }
+  if(motion)previousMotion={line:i};
+  if(orientation||reset)previousOrientation={line:i};
+ });
  if(!hits.length)flag('info',0,'Nu au fost detectate tiparele urmărite. Acest lucru NU confirmă că programul este sigur.','No tracked patterns detected. This does NOT mean the program is safe.');
  return hits.slice(0,100);
 }
