@@ -1,0 +1,50 @@
+// Tests execute the quotation calculator extracted from the live application source.
+// Run: node tests/quotes.test.js
+const fs=require('node:fs');
+const vm=require('node:vm');
+const assert=require('node:assert/strict');
+const html=fs.readFileSync('index.html','utf8');
+const start=html.indexOf('const quoteFields=');
+const end=html.indexOf("$('quoteSave').addEventListener",start);
+assert.ok(start>=0&&end>start,'Quote calculator not found');
+const ids=['qQty','qMat','qSetup','qCycle','qRate','qTool','qOther','qScrap','qMargin','qVat'];
+const vals=['10','20','30','6','120','3','50','10','20','19'];
+const elements={};
+ids.forEach((id,i)=>elements[id]={value:vals[i]});
+for(const id of ['quoteUnit','quoteLot','quoteError'])elements[id]={textContent:''};
+elements.quoteRows={children:[],replaceChildren(){this.children=[]},append(row){this.children.push(row)}};
+elements.jobName={value:'Test CNC'};
+const document={getElementById(id){assert.ok(elements[id], 'Missing '+id);return elements[id]},createElement(tag){return {tag,textContent:'',children:[],append(...children){this.children.push(...children)}}}};
+const context=vm.createContext({document,language:'en',Intl,Number,Math});
+vm.runInContext(html.slice(start,end),context);
+function calculate(){return vm.runInContext('calcQuote()',context)}
+function near(a,b){assert.ok(Math.abs(a-b)<1e-8, a+' != '+b)}
+const r=calculate();
+near(r.material,200);
+near(r.setupCost,60);
+near(r.machine,120);
+near(r.tools,30);
+near(r.base,460);
+near(r.cost,460/0.9);
+near(r.net,(460/0.9)/0.8);
+near(r.tax,r.net*0.19);
+near(r.gross,r.net*1.19);
+near(r.unit,r.net/10);
+assert.equal(elements.quoteRows.children.length,10);
+console.log('PASS: material, setup, machine, tooling, scrap, margin, VAT and unit quote');
+const csv=vm.runInContext('quoteCSV()',context);
+assert.ok(csv.includes('"qQty";"10"')&&csv.includes('"unit"'),'CSV quote export missing fields');
+console.log('PASS: quote CSV export');
+elements.qMargin.value='100';
+assert.equal(calculate(),null);
+assert.equal(elements.quoteUnit.textContent,'—');
+console.log('PASS: margin 100% rejected');
+elements.qMargin.value='20';
+elements.qQty.value='2.5';
+assert.equal(calculate(),null);
+console.log('PASS: fractional quantity rejected');
+elements.qQty.value='10';
+elements.qMat.value='1e308';
+elements.qTool.value='1e308';
+assert.equal(calculate(),null);
+console.log('PASS: numeric overflow rejected');
