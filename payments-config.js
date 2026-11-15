@@ -1,3 +1,8 @@
-// Replace the empty value with the HTTPS Stripe Payment Link for the 39 RON/month PRO subscription.
-// Do not put Stripe secret API keys here.
-window.CNC_PAYMENTS = { proPaymentLink: '' };
+// Public configuration only. Never put Stripe secret keys or Supabase service-role keys here.
+// Configure all three values after deploying the billing API and Supabase Auth.
+window.CNC_PAYMENTS = {
+  supabaseUrl: '',
+  supabaseAnonKey: '',
+  apiBaseUrl: '',
+  proPaymentLink: '' // Legacy fallback is deliberately disabled; use authenticated Checkout.
+};
