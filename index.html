@@ -230,6 +230,39 @@ function compareNCLines(a,b){
  else{changes.push({kind:'removed',line:i+1,text:x[i]});i++}}
  return changes;
 }
+function ncNumericWords(line){
+ const out={};const t=line.toUpperCase().replace(/;.*$/,'').replace(/^\s*\d+\s+/,'');
+ const re=/(?:^|\s)([XYZABCFS])([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?=\s|$)/g;let m;
+ while((m=re.exec(t))!==null)out[m[1]]=Number(m[2]);
+ return out;
+}
+function ncNumericDelta(before,after){
+ const a=ncNumericWords(before),b=ncNumericWords(after),out=[];
+ for(const key of ['X','Y','Z','A','B','C','F','S']){
+  if(!Object.hasOwn(a,key)||!Object.hasOwn(b,key))continue;
+  const delta=Number((b[key]-a[key]).toFixed(6));
+  if(delta!==0)out.push({axis:key,from:a[key],to:b[key],delta});
+ }
+ return out;
+}
+function ncDiffPairs(changes){
+ const pairs=[];let i=0;
+ while(i<changes.length){
+  const removed=[],added=[];
+  while(i<changes.length&&changes[i].kind==='removed')removed.push(changes[i++]);
+  while(i<changes.length&&changes[i].kind==='added')added.push(changes[i++]);
+  if(!removed.length&&!added.length){i++;continue}
+  // Pair only adjacent blocks with matching command prefix and shared numeric words.
+  for(let j=0;j<Math.min(removed.length,added.length);j++){
+   const a=removed[j],b=added[j];
+   const prefix=t=>t.toUpperCase().replace(/^\s*\d+\s+/,'').trim().split(/\s+/)[0];
+   if(prefix(a.text)!==prefix(b.text))continue;
+   const delta=ncNumericDelta(a.text,b.text);
+   if(delta.length)pairs.push({before:a.line,after:b.line,delta});
+  }
+ }
+ return pairs;
+}
 function ncDiffCategories(text){
  const t=text.toUpperCase().replace(/^\s*\d+\s+/,'').replace(/;.*$/,'');
  const out=[];
@@ -243,8 +276,8 @@ function diffCategoryLabel(id,en){const labels={coordinates:['Coordonate','Coord
 async function readNCFile(input){const f=input.files&&input.files[0];if(!f)throw Error('missing');if(f.size>200000)throw Error('limit');const content=await f.text();if(content.length>100000)throw Error('limit');return content}
 function lang(){return $('lang').value==='en'}
 function errorText(e){return e.message==='missing'?(lang()?'Select both NC files.':'Selectează ambele fișiere NC.'):(lang()?'Limit: 400 lines and 100,000 characters per version (file max 200 KB).':'Limită: 400 linii și 100.000 caractere per versiune (fișier maxim 200 KB).')}
-function renderDiff(changes){const box=$('ncDiffResults');box.replaceChildren();const add=changes.filter(c=>c.kind==='added').length,rem=changes.length-add;const cats=['coordinates','feed','spindle','control','other'];const counts=cats.map(k=>diffCategoryLabel(k,lang())+': '+changes.filter(c=>ncDiffCategories(c.text).includes(k)).length).join(' · ');$('ncDiffStatus').textContent=(lang()?'Added lines: ':'Linii adăugate: ')+add+' · '+(lang()?'Removed lines: ':'Linii eliminate: ')+rem+'\n'+counts+(changes.length?'':(lang()?' · Identical text.':' · Text identic.'));changes.slice(0,800).forEach(c=>{const p=document.createElement('div');p.className='item';p.style.padding='7px';p.style.margin='3px 0';p.style.borderLeft=c.kind==='added'?'4px solid #38d8aa':'4px solid #f4c76a';p.textContent=(c.kind==='added'?'+ ':'- ')+(lang()?'Line ':'Linia ')+c.line+' ['+ncDiffCategories(c.text).map(k=>diffCategoryLabel(k,lang())).join(', ')+']: '+c.text;box.append(p)})}
-$('ncCompare').addEventListener('click',async()=>{lastReport='';$('ncDiffResults').replaceChildren();try{oldText=await readNCFile($('ncOldFile'));newText=await readNCFile($('ncNewFile'));const changes=compareNCLines(oldText,newText);renderDiff(changes);lastReport=['CNC Pro Tools - NC textual diff',new Date().toISOString(),'Original: '+$('ncOldFile').files[0].name,'Updated: '+$('ncNewFile').files[0].name,'','Text comparison only; not a machining safety validation.','',...changes.map(c=>(c.kind==='added'?'+':'-')+' line '+c.line+' ['+ncDiffCategories(c.text).join(', ')+']: '+c.text)].join('\n')}catch(e){$('ncDiffStatus').textContent=errorText(e)}});
+function renderDiff(changes){const box=$('ncDiffResults');box.replaceChildren();const add=changes.filter(c=>c.kind==='added').length,rem=changes.length-add;const pairs=ncDiffPairs(changes);const cats=['coordinates','feed','spindle','control','other'];const counts=cats.map(k=>diffCategoryLabel(k,lang())+': '+changes.filter(c=>ncDiffCategories(c.text).includes(k)).length).join(' · ');$('ncDiffStatus').textContent=(lang()?'Added lines: ':'Linii adăugate: ')+add+' · '+(lang()?'Removed lines: ':'Linii eliminate: ')+rem+'\n'+counts+(changes.length?'':(lang()?' · Identical text.':' · Text identic.'))+' · '+(lang()?'Numeric comparisons: ':'Comparații numerice: ')+pairs.length;pairs.forEach(pair=>{const p=document.createElement('div');p.className='item';p.style.padding='9px';p.style.borderLeft='4px solid #5681a6';p.textContent=(lang()?'Possible changed line ':'Posibilă linie modificată ')+pair.before+' → '+pair.after+': '+pair.delta.map(d=>d.axis+' '+d.from+' → '+d.to+' ('+(d.delta>0?'+':'')+d.delta+')').join(' · ');box.append(p)});changes.slice(0,800).forEach(c=>{const p=document.createElement('div');p.className='item';p.style.padding='7px';p.style.margin='3px 0';p.style.borderLeft=c.kind==='added'?'4px solid #38d8aa':'4px solid #f4c76a';p.textContent=(c.kind==='added'?'+ ':'- ')+(lang()?'Line ':'Linia ')+c.line+' ['+ncDiffCategories(c.text).map(k=>diffCategoryLabel(k,lang())).join(', ')+']: '+c.text;box.append(p)})}
+$('ncCompare').addEventListener('click',async()=>{lastReport='';$('ncDiffResults').replaceChildren();try{oldText=await readNCFile($('ncOldFile'));newText=await readNCFile($('ncNewFile'));const changes=compareNCLines(oldText,newText);renderDiff(changes);lastReport=['CNC Pro Tools - NC textual diff',new Date().toISOString(),'Original: '+$('ncOldFile').files[0].name,'Updated: '+$('ncNewFile').files[0].name,'','Text comparison only; not a machining safety validation.','','','Possible numeric line matches (text only, not verified motion):',...ncDiffPairs(changes).map(p=>'Original line '+p.before+' -> new line '+p.after+': '+p.delta.map(d=>d.axis+' '+d.from+' -> '+d.to+' ('+(d.delta>0?'+':'')+d.delta+')').join('; ')),'','Raw line changes:',...changes.map(c=>(c.kind==='added'?'+':'-')+' line '+c.line+' ['+ncDiffCategories(c.text).join(', ')+']: '+c.text)].join('\n')}catch(e){$('ncDiffStatus').textContent=errorText(e)}});
 $('ncDiffExport').addEventListener('click',()=>{if(!lastReport){$('ncDiffStatus').textContent=lang()?'Compare files first.':'Compară mai întâi fișierele.';return}const blob=new Blob([lastReport],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='cnc-nc-diff.txt';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)});
 $('lang').addEventListener('change',()=>{const en=lang();$('ncDiffTitle').textContent=en?'🔀 Compare two NC programs':'🔀 Compară două programe NC';$('ncDiffIntro').textContent=en?'Textual comparison only; not a machine-motion safety check. Max 400 lines and 100,000 characters per version.':'Compară textual două versiuni. Nu validează efectele asupra mișcării mașinii. Maxim 400 linii și 100.000 caractere pentru fiecare versiune.';$('ncOldLabel').textContent=en?'Original version (.h/.i/.nc/.txt)':'Versiunea inițială (.h/.i/.nc/.txt)';$('ncNewLabel').textContent=en?'Updated version (.h/.i/.nc/.txt)':'Versiunea nouă (.h/.i/.nc/.txt)';$('ncCompare').textContent=en?'Compare programs':'Compară programele';$('ncDiffExport').textContent=en?'⬇ Export TXT diff':'⬇ Export diferențe TXT'});
 })();
