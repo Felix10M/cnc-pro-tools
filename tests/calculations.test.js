@@ -1,0 +1,38 @@
+// Integration checks against the actual milling calculator function in index.html.
+// Run: node tests/calculations.test.js
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const html = fs.readFileSync('index.html', 'utf8');
+const start = html.indexOf('function calculate(){');
+const end = html.indexOf("document.querySelectorAll('[data-tab]')", start);
+assert.ok(start !== -1 && end > start, 'Could not locate milling calculator');
+const source = html.slice(start, end);
+const inputs = {d:'10',z:'4',vc:'150',fz:'0.05',len:'100',passes:'1',maxrpm:''};
+const elements = {};
+for (const [id,value] of Object.entries(inputs)) elements[id] = {value};
+for (const id of ['outN','outF','outT','outRev']) elements[id] = {textContent:'',title:''};
+const document = {getElementById(id){assert.ok(elements[id], 'Missing mock element '+id);return elements[id]}};
+const context = vm.createContext({document, language:'en',dict:{en:{invalid:'Invalid input'}} , Intl, Math, Number});
+vm.runInContext(source+';calculate();', context);
+const number = id => Number(elements[id].textContent.replace(/,/g,''));
+assert.equal(number('outN'),4775);
+assert.equal(number('outF'),954.9);
+assert.equal(number('outRev'),0.2);
+assert.equal(number('outT'),0.1);
+console.log('PASS: Ø10, z4, Vc150, fz0.05 gives ~4775 RPM, ~955 mm/min');
+elements.maxrpm.value='3000';
+vm.runInContext('calculate()',context);
+assert.equal(number('outN'),3000);
+assert.equal(number('outF'),600);
+assert.equal(number('outT'),0.17);
+console.log('PASS: spindle speed limit changes feed and machining time');
+elements.d.value='0';
+vm.runInContext('calculate()',context);
+assert.equal(elements.outN.textContent,'—');
+assert.equal(elements.outF.textContent,'—');
+console.log('PASS: invalid tool diameter rejected');
+elements.d.value='10';elements.vc.value='1e308';elements.fz.value='1e308';elements.maxrpm.value='';
+vm.runInContext('calculate()',context);
+assert.equal(elements.outF.textContent,'—');
+console.log('PASS: numeric overflow rejected');
