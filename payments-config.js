@@ -4,5 +4,6 @@ window.CNC_PAYMENTS = {
   supabaseUrl: 'https://ubgsshwcqqslidocjwaa.supabase.co',
   supabaseAnonKey: 'sb_publishable_0QWQBuDKUcy3wXQcwXMGxw_2qZVimiP',
   apiBaseUrl: '',
+  turnstileSiteKey: '', // Cloudflare Turnstile PUBLIC site key; secret stays in Supabase
   proPaymentLink: '' // Legacy fallback is deliberately disabled; use authenticated Checkout.
 };
