@@ -249,8 +249,9 @@ function ncDiffPairs(changes){
  const pairs=[];let i=0;
  while(i<changes.length){
   const removed=[],added=[];
-  while(i<changes.length&&changes[i].kind==='removed')removed.push(changes[i++]);
-  while(i<changes.length&&changes[i].kind==='added')added.push(changes[i++]);
+  const first=changes[i].kind;
+  while(i<changes.length&&changes[i].kind===first)(first==='removed'?removed:added).push(changes[i++]);
+  while(i<changes.length&&changes[i].kind!==first)(first==='removed'?added:removed).push(changes[i++]);
   if(!removed.length&&!added.length){i++;continue}
   // Pair only adjacent blocks with matching command prefix and shared numeric words.
   for(let j=0;j<Math.min(removed.length,added.length);j++){
