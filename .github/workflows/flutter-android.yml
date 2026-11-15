@@ -20,6 +20,9 @@ jobs:
       - name: Generate Android project
         working-directory: flutter-app
         run: flutter create --platforms android --org ro.cncprotools .
+      - name: Remove generated Flutter demo test
+        working-directory: flutter-app
+        run: rm -f test/widget_test.dart
       - name: Enable Android internet access
         working-directory: flutter-app
         run: |
