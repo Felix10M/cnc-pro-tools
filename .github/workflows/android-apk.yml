@@ -25,6 +25,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Generate launcher icon from original CNC Pro SVG
+        run: |
+          python -m pip install --quiet cairosvg
+          mkdir -p android-app/app/src/main/res/drawable-nodpi
+          python -c "import cairosvg; cairosvg.svg2png(url='favicon.svg',write_to='android-app/app/src/main/res/drawable-nodpi/cnc_pro_icon.png',output_width=512,output_height=512)"
       - name: Build debug APK
         working-directory: android-app
         run: gradle --no-daemon assembleDebug
