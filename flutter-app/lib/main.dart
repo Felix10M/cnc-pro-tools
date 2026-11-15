@@ -127,7 +127,6 @@ class _HomePageState extends State<HomePage> {
   int selected = 0;
   @override
   Widget build(BuildContext context) {
-    final user = Supabase.instance.client.auth.currentUser;
     final pages = [const CuttingCalculator(), const DrillingCalculator(), const WorkncChecklist(), const AccountPage()];
     return Scaffold(
       appBar: AppBar(title: const Text('⚙ CNC Pro Tools'), backgroundColor: const Color(0xff102d40)),
