@@ -1,49 +1,27 @@
 (()=>{
 'use strict';
-const $=id=>document.getElementById(id);
-const cfg=window.CNC_PAYMENTS||{};
-const configured=!!(cfg.supabaseUrl&&cfg.supabaseAnonKey&&/^https:\/\//.test(cfg.apiBaseUrl||''));
+const $=id=>document.getElementById(id),cfg=window.CNC_PAYMENTS||{};
+const authReady=!!(cfg.supabaseUrl&&cfg.supabaseAnonKey),apiReady=authReady&&/^https:\/\//.test(cfg.apiBaseUrl||'');
 const en=()=> $('lang')?.value==='en';
-const message=(ro,english)=>{if($('accountMessage'))$('accountMessage').textContent=en()?english:ro};
-const button=$('pricingSubscribe');
+const msg=(ro,english)=>{const v=en()?english:ro;$('entryMessage').textContent=v;$('accountMessage').textContent=v};
 let client=null,session=null;
-const updateUI=()=>{
- $('accountSignIn').hidden=!!session;
- $('accountSignOut').hidden=!session;
- $('accountPortal').hidden=!session;
- $('accountEmail').textContent=session?.user?.email||'';
- if(!configured)message('Conturile și plățile nu sunt încă activate. Configurarea serverului este în curs.','Accounts and payments are not active yet. Server setup is pending.');
-};
-async function token(){const result=await client.auth.getSession();if(result.error)throw result.error;const t=result.data.session?.access_token;if(!t)throw Error('Sign in required');return t}
-async function api(path){const response=await fetch(cfg.apiBaseUrl.replace(/\/$/,'')+path,{method:path==='/subscription'?'GET':'POST',headers:{Authorization:'Bearer '+await token()}});if(!response.ok)throw Error('Request failed ('+response.status+')');return response.json()}
-async function status(){if(!session)return;try{const result=await api('/subscription');$('accountStatus').textContent=result.pro?'PRO ✓': 'FREE';}catch{$('accountStatus').textContent='—';}}
-async function init(){
- updateUI();
- if(!configured){button.disabled=true;button.title='Stripe / Supabase setup required';return}
- try{
-  const module=await import('https://esm.sh/@supabase/supabase-js@2.49.10');
-  client=module.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{auth:{detectSessionInUrl:true,persistSession:true}});
-  const current=await client.auth.getSession();session=current.data.session;updateUI();await status();
-  client.auth.onAuthStateChange((_event,next)=>{session=next;updateUI();setTimeout(status,0)});
-  button.disabled=false;
- }catch{message('Autentificarea nu este disponibilă momentan.','Sign-in is temporarily unavailable.');button.disabled=true}
-}
-$('accountSignIn').addEventListener('click',async()=>{
- if(!client)return;
- const email=$('accountInput').value.trim();
- if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){message('Introdu o adresă de e-mail validă.','Enter a valid email address.');return}
- try{const {error}=await client.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});if(error)throw error;message('Verifică e-mailul pentru linkul de autentificare.','Check your email for the sign-in link.')}catch{message('Nu am putut trimite linkul. Încearcă din nou.','Could not send the link. Try again.')}
-});
-$('accountSignOut').addEventListener('click',async()=>{if(client)await client.auth.signOut();session=null;updateUI();$('accountStatus').textContent='—'});
-$('accountPortal').addEventListener('click',async()=>{try{const data=await api('/portal');if(data.url)location.assign(data.url)}catch{message('Portalul nu este disponibil sau nu ai un abonament.','Billing portal unavailable or no subscription exists.')}});
-// Override the beta placeholder handler by capturing the click before it reaches the legacy handler.
-button.addEventListener('click',async(event)=>{
- event.stopImmediatePropagation();
- if(!configured)return;
- if(!session){message('Autentifică-te mai întâi folosind e-mailul.','Sign in with your email first.');$('accountInput').focus();return}
- button.disabled=true;
- try{const data=await api('/checkout');if(data.url&&/^https:\/\/checkout\.stripe\.com\//.test(data.url))location.assign(data.url);else throw Error('Invalid checkout URL')}
- catch{message('Plata nu este disponibilă momentan.','Checkout is temporarily unavailable.');button.disabled=false}
-},true);
+const gate=$('entryGate'),subscribe=$('pricingSubscribe');
+function ui(){gate.hidden=!!session;$('accountSignIn').hidden=!!session;$('accountSignOut').hidden=!session;$('accountPortal').hidden=!session;$('accountEmail').textContent=session?.user?.email||'';if(session)$('accountStatus').textContent='FREE';}
+async function api(path){const {data,error}=await client.auth.getSession();if(error||!data.session)throw Error('Sign in required');const response=await fetch(cfg.apiBaseUrl.replace(/\/$/,'')+path,{method:path==='/subscription'?'GET':'POST',headers:{Authorization:'Bearer '+data.session.access_token}});if(!response.ok)throw Error('API unavailable');return response.json()}
+async function refresh(){if(!session||!apiReady)return;try{const s=await api('/subscription');$('accountStatus').textContent=s.pro?'PRO ✓':'FREE'}catch{$('accountStatus').textContent='FREE'}}
+function validate(){const email=$('entryEmail').value.trim(),password=$('entryPassword').value;if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error(en()?'Enter a valid email.':'Introdu un e-mail valid.');if(password.length<8)throw Error(en()?'Password must be at least 8 characters.':'Parola trebuie să aibă minimum 8 caractere.');return {email,password}}
+async function authAction(mode){if(!client)return;let values;try{values=validate();if(mode==='register'&&values.password!==$('entryConfirm').value)throw Error(en()?'Passwords do not match.':'Parolele nu coincid.')}catch(e){msg(e.message,e.message);return}
+ $('entryRegister').disabled=$('entryLogin').disabled=true;
+ try{const result=mode==='register'?await client.auth.signUp({email:values.email,password:values.password,options:{emailRedirectTo:location.origin+location.pathname}}):await client.auth.signInWithPassword(values);if(result.error)throw result.error;session=result.data.session;ui();if(!session)msg('Cont creat! Verifică e-mailul pentru confirmare.','Account created! Check your email to confirm it.');else{msg('Autentificare reușită.','Signed in successfully.');refresh()}}catch(e){msg('Autentificarea nu a reușit: '+e.message,'Authentication failed: '+e.message)}finally{$('entryRegister').disabled=$('entryLogin').disabled=false}}
+$('entryRegister').addEventListener('click',()=>authAction('register'));
+$('entryLogin').addEventListener('click',()=>authAction('login'));
+$('entryReset').addEventListener('click',async()=>{if(!client)return;const email=$('entryEmail').value.trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){msg('Introdu e-mailul pentru resetare.','Enter your email to reset your password.');return}try{const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(error)throw error;msg('Dacă există contul, vei primi un e-mail de resetare.','If the account exists, you will receive a reset email.')}catch{msg('Nu am putut trimite cererea.','Could not send the request.')}});
+$('accountSignIn').addEventListener('click',()=>{gate.hidden=false;$('entryEmail').value=$('accountInput').value||''});
+$('accountSignOut').addEventListener('click',async()=>{if(client)await client.auth.signOut();session=null;ui()});
+$('accountPortal').addEventListener('click',async()=>{if(!apiReady)return;try{const r=await api('/portal');if(r.url)location.assign(r.url)}catch{msg('Portalul nu este disponibil.','Billing portal unavailable.')}});
+subscribe.addEventListener('click',async e=>{e.stopImmediatePropagation();if(!apiReady){msg('Plățile PRO nu sunt încă activate.','PRO payments are not active yet.');return}if(!session){gate.hidden=false;return}subscribe.disabled=true;try{const r=await api('/checkout');if(!/^https:\/\/checkout\.stripe\.com\//.test(r.url||''))throw Error('Invalid URL');location.assign(r.url)}catch{msg('Plata nu este disponibilă momentan.','Checkout unavailable.');subscribe.disabled=false}},true);
+async function init(){subscribe.disabled=!apiReady;if(!authReady){$('entryBeta').hidden=false;msg('Conturile sunt în pregătire. Poți testa gratuit aplicația în versiunea beta.','Accounts are coming soon. You can try the free beta.');return}
+ try{const mod=await import('https://esm.sh/@supabase/supabase-js@2.49.10');client=mod.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{auth:{persistSession:true,detectSessionInUrl:true}});const {data,error}=await client.auth.getSession();if(error)throw error;session=data.session;ui();refresh();client.auth.onAuthStateChange((event,next)=>{session=next;ui();if(event==='PASSWORD_RECOVERY'){gate.hidden=false;msg('Ai cerut resetarea parolei. Folosește formularul pentru a continua.','Password recovery requested.')}setTimeout(refresh,0)});msg('Creează un cont sau conectează-te pentru a continua.','Create an account or sign in to continue.')}catch{msg('Autentificarea nu este disponibilă.','Authentication is unavailable.');$('entryBeta').hidden=false}}
+$('entryBeta').addEventListener('click',()=>{if(!authReady)gate.hidden=true});
 init();
 })();
