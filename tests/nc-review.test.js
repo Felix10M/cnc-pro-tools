@@ -44,3 +44,9 @@ assert.ok(report.includes('Linia 2'),'Source line number missing');
 assert.ok(report.includes('NC: L Z+100 FMAX'),'Source excerpt missing');
 assert.ok(report.includes('Nu reprezintă validare'),'Safety disclaimer missing');
 console.log('PASS: NC TXT report content');
+
+hits=analyze(['BEGIN PGM TEST MM','L Z+100 FMAX','PLANE SPATIAL SPA+0 SPB+30 SPC+0','L A+30 FMAX','M129','END PGM TEST MM'].join('\\n'),'640');
+assert.ok(hits.some(x=>x.ro.includes('Schimbare de orientare aproape')),'Orientation transition warning missing');
+assert.ok(hits.some(x=>x.ro.includes('Mișcare rotativă aproape')),'Rotary after orientation warning missing');
+assert.ok(hits.some(x=>x.ro.includes('Dezactivare TCP aproape')),'TCP cancellation warning missing');
+console.log('PASS: NC sequence heuristics');
