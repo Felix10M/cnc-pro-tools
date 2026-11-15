@@ -32,3 +32,15 @@ for(const order of ['added','removed']){
  assert.equal(pairs.length,1);
 }
 console.log('PASS: NC numeric differences');
+
+const diffStart=html.indexOf('function compareNCLines(a,b){');
+const diffEnd=html.indexOf('function ncNumericWords(line){',diffStart);
+assert.ok(diffStart>=0&&diffEnd>diffStart,'Line comparison function not found');
+vm.runInContext(html.slice(diffStart,diffEnd),ctx);
+const changes=Array.from(vm.runInContext("compareNCLines('L X+50 F2000','L X+55 F1500')",ctx));
+assert.equal(changes.length,2);
+assert.equal(changes.filter(x=>x.kind==='added').length,1);
+assert.equal(changes.filter(x=>x.kind==='removed').length,1);
+assert.equal(Array.from(vm.runInContext('ncDiffPairs('+JSON.stringify(changes)+')',ctx)).length,1);
+assert.equal(vm.runInContext("compareNCLines('L X+1','L X+1').length",ctx),0);
+console.log('PASS: end-to-end NC line comparison and numeric pairing');
