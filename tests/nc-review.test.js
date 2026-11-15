@@ -33,3 +33,14 @@ assert.ok(hits.some(x=>x.ro.includes('PLANE RESET')),'Plane reset warning missin
 assert.ok(hits.some(x=>x.ro.includes('Ciclu 19')),'Cycle 19 warning missing');
 assert.ok(hits.some(x=>x.ro.includes('M129')),'M129 warning missing');
 console.log('PASS: 5-axis transitional command checks');
+
+const reportStart=html.indexOf('function reportNC(source,controller,en){');
+const reportEnd=html.indexOf('function render(){',reportStart);
+assert.ok(reportStart>0&&reportEnd>reportStart,'NC report generator missing');
+vm.runInContext(html.slice(reportStart,reportEnd),ctx);
+const report=vm.runInContext('reportNC('+JSON.stringify('BEGIN PGM TEST MM\nL Z+100 FMAX\nEND PGM TEST MM')+',"640",false)',ctx);
+assert.ok(report.includes('Controler: TNC 640'),'Controller missing from report');
+assert.ok(report.includes('Linia 2'),'Source line number missing');
+assert.ok(report.includes('NC: L Z+100 FMAX'),'Source excerpt missing');
+assert.ok(report.includes('Nu reprezintă validare'),'Safety disclaimer missing');
+console.log('PASS: NC TXT report content');
