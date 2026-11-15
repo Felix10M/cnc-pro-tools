@@ -18,7 +18,7 @@ assert.match(html, /function quoteCSV\(/, 'Missing quote export');
 assert.match(html, /localStorage/, 'Missing local persistence');
 console.log('PASS: quote UI, validation, export and storage markers present');
 for (const id of ['ncInput','ncAnalyze','ncExport','ncFilter','ncSaveHistory','ncClearHistory','ncOldFile','ncNewFile','ncCompare','ncDiffExport','ncDiffResults']) {
-  assert.match(html,new RegExp('id=["\\\\\']'+id+'["\\\\\']'),'Missing NC UI element: '+id);
+  assert.ok(html.includes('id="'+id+'"') || html.includes("id='"+id+"'"), 'Missing NC UI element: '+id);
 }
 assert.match(html,/function compareNCLines\(/,'Missing NC comparison');
 assert.match(html,/function ncNumericDelta\(/,'Missing numeric NC comparison');
