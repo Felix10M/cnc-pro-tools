@@ -42,13 +42,16 @@ async function requireUser(req,res,next){
  if(error||!data?.user)return res.status(401).json({error:'Invalid session'});
  req.user=data.user;next();
 }
+async function isAdmin(userId){const result=await admin.from('app_admins').select('user_id').eq('user_id',userId).maybeSingle();if(result.error)throw result.error;return !!result.data}
 app.get('/subscription',requireUser,async(req,res)=>{
+ try{if(await isAdmin(req.user.id))return res.json({pro:true,admin:true,status:'admin',currentPeriodEnd:null})}catch{return res.status(500).json({error:'Admin status unavailable'})}
  const {data,error}=await admin.from('billing_subscriptions').select('status,current_period_end').eq('user_id',req.user.id).maybeSingle();
  if(error)return res.status(500).json({error:'Subscription unavailable'});
  res.json({pro:validStatuses.has(data?.status),status:data?.status||'none',currentPeriodEnd:data?.current_period_end||null});
 });
 app.post('/checkout',requireUser,async(req,res)=>{
  try{
+  if(await isAdmin(req.user.id))return res.status(409).json({error:'Admin already has PRO access'});
   let {data:row,error}=await admin.from('billing_customers').select('stripe_customer_id').eq('user_id',req.user.id).maybeSingle();
   if(error)throw error;
   let customerId=row?.stripe_customer_id;
