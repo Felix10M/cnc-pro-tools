@@ -112,9 +112,10 @@ function quoteHistoryMessage(ro,en){$('quoteHistoryStatus').textContent=language
 function quoteValidateBackup(data){
  if(!data||data.format!=='cnc-pro-tools-quotes'||data.version!==1||!Array.isArray(data.quotes)||data.quotes.length>50)throw Error('Invalid backup format');
  const ids=[...quoteMetaIds,...quoteFields];
- const clean=[];
+ const clean=[];const seen=new Set();
  for(const record of data.quotes){
   if(!record||typeof record!=='object'||typeof record.id!=='string'||record.id.length>100||typeof record.date!=='string'||record.date.length>30||!record.fields||typeof record.fields!=='object'||!Array.isArray(record.items)||record.items.length>100)throw Error('Invalid quote');
+  if(seen.has(record.id))throw Error('Duplicate quote ID');seen.add(record.id);
   const fields={};
   for(const id of ids){
    const v=record.fields[id];
@@ -123,6 +124,7 @@ function quoteValidateBackup(data){
   }
   const items=record.items.map(item=>{
    if(!item||typeof item.name!=='string'||item.name.length>100||!Number.isSafeInteger(item.qty)||item.qty<1||![item.unit,item.net,item.tax,item.gross].every(v=>typeof v==='number'&&Number.isFinite(v)&&v>=0))throw Error('Invalid item');
+   if(Math.abs(item.unit*item.qty-item.net)>0.02||Math.abs(item.net+item.tax-item.gross)>0.02)throw Error('Inconsistent totals');
    return {name:item.name,qty:item.qty,unit:item.unit,net:item.net,tax:item.tax,gross:item.gross};
   });
   clean.push({id:record.id,date:record.date,number:fields.quoteNumber,client:fields.quoteClient,fields,items});
