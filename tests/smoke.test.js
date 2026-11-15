@@ -24,3 +24,11 @@ assert.match(html,/function compareNCLines\(/,'Missing NC comparison');
 assert.match(html,/function ncNumericDelta\(/,'Missing numeric NC comparison');
 console.log('PASS: NC review and comparison UI markers present');
 console.log('PASS: static smoke checks completed (browser interaction NOT tested)');
+
+for (const id of ['quoteCompany','quoteClient','quoteLogo','quoteNumber','quoteAddItem','quoteItemsRows','quoteSaveFull','quoteLoadFull','quoteDeleteFull','quoteHistorySelect','quoteExportJSON','quoteImportJSON','quoteImportFile']) {
+  assert.ok(html.includes('id="'+id+'"') || html.includes("id='"+id+"'"), 'Missing quote UI element: '+id);
+}
+for (const name of ['quotePrintableHTML','quoteValidateBackup','quoteReadHistory','quoteItemsTotals','quoteSeriesPrices']) {
+  assert.ok(html.includes('function '+name+'('), 'Missing quote function: '+name);
+}
+console.log('PASS: full quote, multi-item and backup UI markers present');
