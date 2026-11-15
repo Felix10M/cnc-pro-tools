@@ -32,8 +32,13 @@ jobs:
           python -c "import cairosvg; cairosvg.svg2png(url='favicon.svg',write_to='android-app/app/src/main/res/drawable-nodpi/cnc_pro_icon.png',output_width=512,output_height=512)"
       - name: Build debug APK
         working-directory: android-app
-        run: gradle --no-daemon assembleDebug
+        run: gradle --no-daemon assembleDebug bundleRelease
       - uses: actions/upload-artifact@v4
         with:
           name: CNC-Pro-Tools-Android-APK
           path: android-app/app/build/outputs/apk/debug/app-debug.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CNC-Pro-Tools-Play-Unsigned-AAB
+          path: android-app/app/build/outputs/bundle/release/app-release.aab
